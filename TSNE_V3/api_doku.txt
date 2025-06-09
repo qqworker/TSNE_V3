@@ -1,0 +1,497 @@
+'##############################################################################################################
+'##############################################################################################################
+' TSNE_V3 - TCP Socket Networking [Eventing] Version: 3.2 (0.18.5)
+'##############################################################################################################
+'##############################################################################################################
+' 2008 By.: /_\ DeltaLab's - Deutschland
+' Autor: Martin Wiemann
+'##############################################################################################################
+
+
+
+'##############################################################################################################
+' T S N E - V E R S I O N _ 3 - A P I - D O K U
+'##############################################################################################################
+
+
+
+
+
+
+
+
+
+'##############################################################################################################
+'   Legende / Wichtige Hinweise
+'##############################################################################################################
+
+' * Jede Funktion oder Sub beginnt immer mit 'TSNE_'.
+' * Funktionen die mit 'TSNE_BW_' beginnen gehören zu den BlackWhite List Befehlen.
+' * Parameter beginnen immer mit 'V_' oder 'R_'.
+'   Dabei zeigt ein führendes 'V_' an das hier Daten übergeben werden müssen
+'   Ein führendes 'R_' zeigt an, das hier ein Wert von der Funktion / Sub eingetragen / gefüllt wird
+'	Bis auf einigen Ausnahmen (Siehe 'TSNE_IsClosed') liefert jede Funktion einen GURU-Code zurück.
+'	Alle Rückgaben können mit 'TSNE_GetGURUCode' in einem String umgewandelt werden.
+
+'IPV6 ist derzeit in Arbeit und wird daher noch nicht unterstützt.
+
+
+
+
+
+
+
+
+'##############################################################################################################
+'   TSNE-Optionen
+'##############################################################################################################
+
+
+'##############################################################################################################
+#DEFINE TSNE_DEF_REUSER
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Aktiviert die automatische Socket-Rückhohlung. Wurde beispielsweise ein Server erstellt und
+'			   und dieser brach ohne das Close ab, oder wurden mehrere Server erstellt, dessen Timeout im
+'			   Netzwerk noch fest hängt, dann kann damit die automatische Rückhohlung aktiert werden.
+'			   Dadurch wird ein Hängendes Socket, das vom selben Benutzer gestartet wurde, wie der neu zu
+'			   erstellende, und dieser nicht belegt ist, weiterverwendet und es kommt zu keinem
+'			   TSNE_Const_CantBindSocket ("Can't bind port on socket") Fehler.
+'
+'			   Hier sollte jedoch mit bedacht gearbeitet werden, da 2 gleichlautende UDP-RX Sockets keine
+'			   Fehlermeldung produzieren, obwohl nur einer der erstellten UDP-Sockets empfangsbereit ist.
+'			   Dadurch werden alle an die UDP-RX laufenden Nachrichten an das zuletzt erstellte UDP-RX
+'			   weitergeleitet. Alle zuvor erstellten empfangen daraufhin keine Daten mehr.
+'			   Wird das letzte UDP-RX geschlossen, empfängt der nächst letzte alle Nachrichten.
+
+
+
+
+
+
+
+
+
+'##############################################################################################################
+'   TCP-Befehle
+'##############################################################################################################
+
+
+'##############################################################################################################
+Function TSNE_GetGURUCode (ByRef V_GURUID as Integer) as String
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Wandelt einen Guru-Code in einen Englischen Beschreibungs-Text um
+'Rückgabe: Liefert einen String mit dem Beschreibungstext zurück.
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'V_GURUID					= Ein gültiger GURU-Code, der von den meisten Funktionen zurückgegeben wird
+
+
+
+'##############################################################################################################
+Function TSNE_Stats (ByRef V_TSNEID as UInteger, ByRef R_RX as ULongInt, ByRef R_TX as ULongInt) as Integer
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Liefert eine kleine Statistik eines TSNE.
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'V_TSNEID					= Hier muss eine gültige TSNE-ID übergeben werden.
+'R_RX						= Die Funktion trägt hier die anzahl Bytes ein welche auf dieser TSNE Empfangen wurden.
+'R_TX						= Anzahl Bytes die versand wurden.
+
+
+
+'##############################################################################################################
+Function TSNE_Disconnect (ByRef V_TSNEID as UInteger) as Integer
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Beendet eine bestehende Verbindung / geöffneten Server bzw. Client.
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'V_TSNEID					= Hier muss eine gültige TSNE-ID übergeben werden.
+
+
+
+'##############################################################################################################
+Function TSNE_Create_Server (ByRef R_TSNEID as UInteger, ByRef V_Port as UShort, ByRef V_MaxSimConReq as UShort = 10, ByVal V_Event_NewConPTR as Any Ptr, ByVal V_Event_NewConCancelPTR as Any Ptr) as Integer
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Erstellt einen neuen TCP-Server
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'R_TSNEID					= Enthält nach dem Aufruf die TSNEID dieser neuen Verbindung.
+'V_Port						= Muss einen Port zwischen 1 und 65535 enthalten, auf dem nach neuen Anfragen 'gelauscht' werden soll
+'V_MaxSimConReq				= Muss einen Wert zwischen 1 und 4096 enthalten. Dieser Wert gibt an wie viele Verbindungen gleichzeitig
+'							  in der 'Warteschlange' gehalten, bevor weitere Anfragen automatisch abgelehnt werden sollen.
+'							  Ein Typischer Wert liegt bei 10.
+'V_Event_NewConPTR			= Hier muss ein Pointer auf eine 'NewConnection' Sub angegeben werden. (Siehe: Callback)
+'V_Event_NewConCancelPTR	= (Optional) Hier kann ein Pointer auf eine 'NewConnectionCancel' Sub angegeben werden. (Siehe: Callback)
+
+
+
+'##############################################################################################################
+Function TSNE_Create_Server_WithBindIPA (ByRef R_TSNEID as UInteger, ByRef V_Port as UShort, ByRef V_IPA as UShort, ByRef V_MaxSimConReq as UShort = 10, ByVal V_Event_NewConPTR as Any Ptr, ByVal V_Event_NewConCancelPTR as Any Ptr) as Integer
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Erstellt einen neuen TCP-Server der ausschliesslich auf Anfragen an die "V_IPA" IP-Adresse hört.
+'              Dies ist sinvoll, wenn mehrere Netzwerkkarten in einem Computer vorhanden sind und ein Server nur
+'              Anfragen von einer Netzwerkkarte Empfangen soll. Hierfür muss die entsprechende IP-Adresse dieser
+'              In V_IPA eingetragen werden. Andernfalls (wenn alle eingehenden Anfragen empfangen werden sollen,
+'              muss hier "127.0.0.1" eingetragen werden.
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'R_TSNEID					= Enthält nach dem Aufruf die TSNEID dieser neuen Verbindung.
+'V_Port						= Muss einen Port zwischen 1 und 65535 enthalten, auf dem nach neuen Anfragen 'gelauscht' werden soll
+'V_IPA						= Muss eine IP-Adresse sein. 127.0.0.1 entspricht hier "Alle". Diese Adresse empfängt Alle Anfragen an den Server.
+'							= Sollen nur Anfragen an die IP-Adresse 192.168.0.13 empfangen werden muss die entsprechende IPA eingetragen werden.
+'V_MaxSimConReq				= Muss einen Wert zwischen 1 und 4096 enthalten. Dieser Wert gibt an wie viele Verbindungen gleichzeitig
+'							  in der 'Warteschlange' gehalten, bevor weitere Anfragen automatisch abgelehnt werden sollen.
+'							  Ein Typischer Wert liegt bei 10.
+'V_Event_NewConPTR			= Hier muss ein Pointer auf eine 'NewConnection' Sub angegeben werden. (Siehe: Callback)
+'V_Event_NewConCancelPTR	= (Optional) Hier kann ein Pointer auf eine 'NewConnectionCancel' Sub angegeben werden. (Siehe: Callback)
+
+
+
+'##############################################################################################################
+Function TSNE_Create_Client (ByRef R_TSNEID as UInteger, ByVal V_IPA as String, ByVal V_Port as UShort, ByVal V_Event_DisconPTR as Any Ptr, ByVal V_Event_ConPTR as Any Ptr, ByVal V_Event_NewDataPTR as Any Ptr, ByVal V_TimeoutSecs as UInteger = 60) as Integer
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Erstellt eine neue Client-Verbindung
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'R_TSNEID					= Enthält nach dem Aufruf die TSNEID dieser neuen Verbindung.
+'V_IPA						= Hier muss eine gültige IP-Adresse übergeben werden.
+'V_Port						= Muss einen Port zwischen 1 und 65535 enthalten, auf dem nach neuen Anfragen 'gelauscht' werden soll
+'V_Event_DisconPTR			= (Optional) Hier kann ein Pointer auf eine 'Disconnect' Sub angegeben werden. (Siehe: Callback)
+'V_Event_ConPTR				= (Optional) Hier kann ein Pointer auf eine 'Connected' Sub angegeben werden. (Siehe: Callback)
+'V_Event_NewDataPTR			= Hier muss ein Pointer auf eine 'NewData' Sub angegeben werden. (Siehe: Callback)
+'V_TimeoutSecs				= Ein Wert der angibt wann die Funktion zwangsweise beendet wird, falls ein Verbindungsaufbau nicht möglich ist.
+'							  Ein typischer Wert ist 60 (Sekunden)
+
+
+
+'##############################################################################################################
+Function TSNE_Create_Accept (ByVal V_RequestID as Socket, ByRef R_TSNEID as UInteger, ByRef R_IPA as String, ByVal V_Event_DisconPTR as Any Ptr, ByVal V_Event_ConPTR as Any Ptr, ByVal V_Event_NewDataPTR as Any Ptr, ByRef R_RemoteShownServerIPA as String = "") as Integer
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Akzeptiert und erstellt eine neue Client-Verbindung welche durch ein 'NewConnection' ausgelöst wurde.
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'V_RequestID				= Hier muss eine von einer 'NewConnection' Sub übergebene V_RequestID angegeben werden.
+'R_TSNEID					= Enthält nach dem Aufruf die TSNEID dieser neuen Verbindung.
+'R_IPA						= Liefert die IP-Adresse der neuen Verbindung zurück.
+'V_Event_DisconPTR			= (Optional) Hier kann ein Pointer auf eine 'Disconnect' Sub angegeben werden. (Siehe: Callback)
+'V_Event_ConPTR				= (Optional) Hier kann ein Pointer auf eine 'Connected' Sub angegeben werden. (Siehe: Callback)
+'V_Event_NewDataPTR			= Hier muss ein Pointer auf eine 'NewData' Sub angegeben werden. (Siehe: Callback)
+'R_RemoteShownServerIPA		= Enhält nach dem Aufruf die IP-Adresse des eigenen Servers. Hierbei ist die Adresse diejenige, welche der Client eingegeben hat.
+'							  Ist z.B. nützlich um bei FTP-Verbindungen über PASV die eigene IPA zu ermitteln.
+
+
+
+'##############################################################################################################
+Function TSNE_Data_Send (ByRef V_TSNEID as UInteger, ByRef V_Data as String, ByRef R_BytesSend as UInteger = 0, ByVal V_IPA as String = "", ByVal V_Port as UShort = 0) as Integer
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Sendet Daten an eine Client-Verbindung
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'V_TSNEID					= Hier muss eine gültige TSNE-ID übergeben werden.
+'V_Data						= Enthält die Daten welche übertragen werden sollen.
+'R_BytesSend				= Enthält die Anzahl übertragener Bytes.
+
+'Bei UDP-TSNE's sind folgende Angaben NOTWENDIG. Bei TCP werden diese Parameter ignoriert.
+'V_IPA						= Hier muss eine gültige IP-Adresse übergeben werden. ("0" für Nachrichten an Alle im Subnetz vorhandenen Clienten)
+'V_Port						= Muss einen Port zwischen 1 und 65535 enthalten, auf dem nach neuen Anfragen 'gelauscht' werden soll
+
+
+
+'##############################################################################################################
+Sub TSNE_WaitClose (ByRef V_TSNEID as UInteger)
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Beendet den Aufruf erst, wenn die Verbindung (Client oder Server) beendet wurde. (Disconnect)
+'DIESE FUNKTION SOLLTE IN KEINEM FALL IN EINEM CALLBACK AUFGERUFEN WERDEN DESSEN V_TSNEID HIER ALS ZU PRÜFEN
+'ÜBERGEBEN WIRD! Dies würde zu einem Blockieren führen!
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'V_TSNEID					= Hier muss eine gültige TSNE-ID übergeben werden.
+
+
+
+'##############################################################################################################
+Function TSNE_IsClosed (ByRef V_TSNEID as UInteger) as UByte
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Prüft ob eine Verbindung noch aktiv ist, oder nicht
+'Rückgabe: 1 = Verbindung existiert nicht länger / hat noch nie, oder wurde beendet. 0 = Verbindung besteht noch.
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'V_TSNEID					= Hier muss eine gültige TSNE-ID übergeben werden.
+
+
+
+'##############################################################################################################
+Function TSNE_WaitConnected (ByRef V_TSNEID as UInteger, V_TimeOut as UInteger = 60) as Integer
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Prüft ob eine Verbindung vollständig hergestellt wurde und Bereit ist Daten auszutauschen.
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'V_TSNEID					= Hier muss eine gültige TSNE-ID übergeben werden.
+'V_Timeout					= Ein Wert der angibt wann die Funktion zwangsweise beendet wird, falls ein Verbindungsaufbau nicht möglich war.
+'							  Ein typischer Wert ist 60 (Sekunden)
+'							  (ACHTUNG) Dieser Wert wird auf die Etablierung der Verbindugn Hinzugerechnet (Create_Client Timeout + Wait Timeout)
+
+
+
+
+
+
+
+
+
+'##############################################################################################################
+'   UDP Befehle
+'##############################################################################################################
+
+
+'##############################################################################################################
+Declare Function	TSNE_Create_UDP_RX			(ByRef R_TSNEID as UInteger, ByVal V_Port as UShort, ByVal V_Event_NewDataUDPPTR as Any Ptr) as Integer
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Erstellt ein neues Socket (ansprechbar mit R_TSNEID) für den EMPFANG von UDP-Nachrichten
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'R_TSNEID					= Enthält nach dem Aufruf die TSNEID dieser neuen Verbindung.
+'V_Port						= Muss einen Port zwischen 1 und 65535 enthalten, auf dem nach neuen Anfragen 'gelauscht' werden soll
+'V_Event_NewDataUDPPTR		= Hier muss ein Pointer auf eine 'NewDataUDP' Sub angegeben werden. (Siehe: Callback)
+
+
+
+'##############################################################################################################
+Declare Function	TSNE_Create_UDP_TX			(ByRef R_TSNEID as UInteger, ByVal V_DoBroadcast as UByte = 0) as Integer
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Erstellt ein neues Socket (ansprechbar mit R_TSNEID) für den VERSAND von UDP-Nachrichten
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'R_TSNEID					= Enthält nach dem Aufruf die TSNEID dieser neuen Verbindung.
+'V_DoBroadcast				= '1' Aktiviert den Broadcast Modus. Damit ist es möglich Broadcast-Nachrichten
+'							  in das Subnetz zu senden. '0' ist der Reguläre Modus für den direkten Versand.
+
+
+
+'##############################################################################################################
+'Das Senden von Daten wird mit dem in den TCP-Befehlen beschriebene "TSNE_Data_Send" durchgeführt.
+
+
+
+
+
+
+
+
+
+'##############################################################################################################
+'   PING Befehle
+'##############################################################################################################
+
+
+'##############################################################################################################
+Declare Function	TSNE_Ping					(ByVal V_IPA as String, ByRef R_Runtime as Double, ByVal V_TimeoutSecs as UByte = 10) as Integer
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Führt eine Laufzeitanfrage (Ping) zu einem angegebenem Computer aus
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'V_IPA						= Hier muss eine gültige IP-Adresse übergeben werden. ("0" für Nachrichten an Alle im Subnetz vorhandenen Clienten)
+'R_Runtime					= Gibt bei Erfolg die Laufzeit des Pings aus
+'V_TimeoutSecs				= (Optional) Hier kann ein Timeout Wert für die Anfrage in Sekundenangegeben werden. (Standard 10 Sekunden)
+
+
+
+
+
+
+
+
+
+'##############################################################################################################
+'   Black/White-List Befehle
+'##############################################################################################################
+
+
+'##############################################################################################################
+Function TSNE_BW_SetEnable (ByVal V_Server_TSNEID as UInteger, V_Type as TSNE_BW_Mode_Enum) as Integer
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Deaktiviert / Aktiviert eine Black/White-List
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'V_Server_TSNEID			= Hier muss eine gültige TSNE-ID eines Servers übergeben werden.
+'V_Type						= Gibt an welcher Typus von Liste verwendet werden soll.
+'							  TSNE_BW_Mode_None		= Keine List verwenden. (Deaktiviert)
+'							  TSNE_BW_Mode_Black	= BlackList. Alle IP-Adressen auf dieser Liste werden Ignoriert.
+'							  TSNE_BW_Mode_White	= WhiteList. Alle IP-Adressen auf dieser Liste werden Akzeptiert.
+
+
+
+'##############################################################################################################
+Function TSNE_BW_GetEnable (ByVal V_Server_TSNEID as UInteger, R_Type as TSNE_BW_Mode_Enum) as Integer
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Liest den Status der Black/White-List
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'V_Server_TSNEID			= Hier muss eine gültige TSNE-ID eines Servers übergeben werden.
+'R_Type						= Enthält nach dem Funktionsaufruf den Typus der Liste. (Siehe: TSNE_BW_SetEnable)
+
+
+
+'##############################################################################################################
+Function TSNE_BW_Clear (ByVal V_Server_TSNEID as UInteger) as Integer
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Leert die BW_Liste vollständig. (Alle IP-Adressen werden gelöscht)
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'V_Server_TSNEID			= Hier muss eine gültige TSNE-ID eines Servers übergeben werden.
+
+
+
+'##############################################################################################################
+Function TSNE_BW_Add (ByVal V_Server_TSNEID as UInteger, V_IPA as String) as Integer
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Fügt eine IP-Adresse zur BW-Liste hinzu.
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'V_Server_TSNEID			= Hier muss eine gültige TSNE-ID eines Servers übergeben werden.
+'V_IPA						= Muss eine Gültige IP-Adresse enthalten.
+
+
+
+'##############################################################################################################
+Function TSNE_BW_Del (ByVal V_Server_TSNEID as UInteger, V_IPA as String) as Integer
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Löscht eine IP-Adresse aus der BW-Liste.
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'V_Server_TSNEID			= Hier muss eine gültige TSNE-ID eines Servers übergeben werden.
+'V_IPA						= Muss eine Gültige IP-Adresse enthalten.
+
+
+
+'##############################################################################################################
+Function TSNE_BW_List (ByVal V_Server_TSNEID as UInteger, ByRef R_IPA_List as TSNE_BWL_Type Ptr) as Integer
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Gibt eine Liste aller IP-Adressen in der BW_List zurück. Die Liste ist eine 'TSNE_BWL_Type' Linked List.
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'V_Server_TSNEID			= Hier muss eine gültige TSNE-ID eines Servers übergeben werden.
+'R_IPA_List					= Gibt den Ersten Pointer auf eine TSNE_BWL_Type Linked List zurück welche die IP-Adressen enthält.
+'							  Muss von hand DeAllocated werden!!!!! Sonst entstehen Speicher-Leaks!!!!!
+
+
+
+
+
+
+
+
+
+'##############################################################################################################
+'   Strukturen / Konstanten
+'##############################################################################################################
+
+
+'##############################################################################################################
+Private Type TSNE_BWL_Type
+	V_Next							as TSNE_BWL_Type Ptr
+	V_Prev							as TSNE_BWL_Type Ptr
+	V_IPA							as String
+End Type
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Daten-Struktur (Linked List) für die Black/White Liste.
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'V_Next						= Pointer auf den Nächsten Eintrag in der Liste.
+'V_Prev						= Pointer auf einen vorherigen Eintrag in der Liste
+'V_IPA						= IP-Adresse
+
+
+
+'##############################################################################################################
+Enum TSNE_BW_Mode_Enum
+	TSNE_BW_Mode_None	= 0
+	TSNE_BW_Mode_Black	= 1
+	TSNE_BW_Mode_White	= 2
+End Enum
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Typus der Black/White-Liste
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'TSNE_BW_Mode_None			= Keine Liste verwenden. (Alle Anfragen werden akzeptiert)
+'TSNE_BW_Mode_Black			= Schwarze-Liste. IP-Adresse auf dieser Liste werden automatisch abgewiesen.
+'TSNE_BW_Mode_White			= Weiße-Liste. IP-Adressen auf dieser Liste werden nicht abgeweisen.
+
+
+
+'##############################################################################################################
+'TSNE_Const_UnknowError				= Unbekannter Fehler.
+'TSNE_Const_NoError					= Kein Fehler.
+'TSNE_Const_UnknowEventID			= Unbekannte EventID.
+'TSNE_Const_NoSocketFound			= 'V_SOCKET' enthält keine gültige Socket-ID.
+'TSNE_Const_CantCreateSocket		= Konnte Socket nicht erstellen.
+'TSNE_Const_CantBindSocket			= Konnte Socket nicht an Port binden.
+'TSNE_Const_CantSetListening		= Konnte Socket nicht in den 'Listening'-Mode versetzen.
+'TSNE_Const_SocketAlreadyInit		= Socket wurde bereits Inizialisiert.
+'TSNE_Const_MaxSimConReqOutOfRange	= 'V_MaxSimConReq' ist auserhalb des gültigen Bereichs.
+'TSNE_Const_PortOutOfRange			= 'V_Port' ist auserhalb des gültigen Bereichs
+'TSNE_Const_CantResolveIPfromHost	= Konnte Host-Name nicht in IP-Adresse umwandeln
+'TSNE_Const_CantConnectToRemote		= Konnte keine Verbindung zur Gegenstelle aufbauen
+'TSNE_Const_TSNEIDnotFound			= 'V_TSNEID' wurde nicht gefunden.
+'TSNE_Const_MissingEventPTR			= Vermisse 'Event_...' Pointer.
+'TSNE_Const_IPAalreadyInList		= IP-Adresse ist bereits auf der Liste.
+'TSNE_Const_IPAnotInList			= IP-Adresse ist nicht in der Liste.
+'TSNE_Const_ReturnErrorInCallback	= Unbekannter Fehler in Internem Aufruf einer Funktion.
+'TSNE_Const_IPAnotFound				= IP-Adresse wurde nicht gefunden.
+'TSNE_Const_ErrorSendingData		= Fehler bei der Datenübertragung. Eventuell wurde die Verbindung getrennt.
+'TSNE_Const_UnknowGURUcode			= Unbekannter GURU-Code
+'TSNE_Const_TSNENoServer			= 'V_Server_TSNEID' ist kein Server
+'TSNE_Const_NoIPV6					= Keine IPV6 unterstützung!
+
+
+
+
+
+
+
+
+
+'##############################################################################################################
+'   Callback Strukturen
+'##############################################################################################################
+
+
+'##############################################################################################################
+Sub TSNE_Disconnected (ByVal V_TSNEID as UInteger)
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Wird ausgelösst wenn eine Verbindung beendet wurde (Entweder durch ein TSNE_Disconnect oder von der Gegenstelle)
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'V_TSNEID					= Hier findet sich die TSNE-ID der Verbindung, welche beendet wurde.
+
+
+
+'##############################################################################################################
+Sub TSNE_Connected (ByVal V_TSNEID as UInteger)
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Wird ausgelösst wenn eine Verbindung vollständig aufgebaut wurde. (Nur bei Client / Accept Verbindungen)
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'V_TSNEID					= Hier findet sich die TSNE-ID der Verbindung, welche erfolgreich Verbunden wurde.
+
+
+
+'##############################################################################################################
+Sub TSNE_NewConnection (ByVal V_TSNEID as UInteger, ByVal V_RequestID as Socket, ByVal V_IPA as String)
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Wird ausgelösst wenn ein Server eine neue Verbindungsanfrage erhalten hat.
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'V_TSNEID					= Hier findet sich die TSNE-ID des Servers, welcher eine Anfrage erhalten hat.
+'V_RequestID				= Enthält eine Socket-Nummer welche den Anfragenden Identifiziert und muss bei einem
+'							  TSNE_Create_Accept übergeben werden!
+'V_IPA						= Enthält die IP-Adresse des Anfragenden.
+
+
+
+'##############################################################################################################
+Sub TSNE_NewConnectionCanceled (ByVal V_TSNEID as UInteger, ByVal V_IPA as String)
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Wird ausgelösst wenn eine Verbindungsanfrage AUTOMATISCH vom Server verweigert wurde.
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'V_TSNEID					= Hier findet sich die TSNE-ID des Servers, welcher eine Anfrage erhalten hat.
+'V_IPA						= Enthält die IP-Adresse des Anfragenden.
+
+
+
+'##############################################################################################################
+Sub TSNE_NewData (ByVal V_TSNEID as UInteger, ByRef V_Data as String)
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Wird ausgelösst wenn eine Verbindung neue Daten Empfangen hat.
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'V_TSNEID					= Hier findet sich die TSNE-ID der Verbindung, welche neue Daten empfangen hat.
+'V_Data						= Enthält die Daten, welche Empfangen wurden. (KEIN 0-Terminierter ZString!!!)
+
+
+
+'##############################################################################################################
+Sub TSNE_NewDataUDP (ByVal V_TSNEID as UInteger, ByVal V_IPA as String, ByRef V_Data as String)
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'Beschreibung: Wird ausgelösst wenn eine UDP!!! Verbindung neue Daten Empfangen hat.
+'- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+'V_TSNEID					= Hier findet sich die TSNE-ID der Verbindung, welche neue Daten empfangen hat.
+'V_IPA						= Enthält die IP-Adresse desjenigen, welcher die Daten gesand hat.
+'V_Data						= Enthält die Daten, welche Empfangen wurden. (KEIN 0-Terminierter ZString!!!)
+
+
+
